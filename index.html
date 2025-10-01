@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>译林版六年级英语 · 出题与讲解 · v5.3.0-clean</title>
+<title>译林版六年级英语 · 出题与讲解 · v5.3.1-pdf-cards</title>
 <style>
   :root {
     --bg: #0b1020;
@@ -45,12 +45,29 @@
   .muted{color:var(--muted)} .small{font-size:12px}
   #toast{position:fixed;right:16px;bottom:16px;max-width:360px;background:#0f172a;color:#fff;padding:10px 12px;border-radius:10px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:14px;z-index:9999;border:1px solid rgba(255,255,255,.08)}
   .footer{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+  /* —— 以下是 PDF 专用卡片样式 —— */
+  #pdf-root{font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; color:#111; }
+  #pdf-root .paper{padding:24px}
+  #pdf-root .paper-header{display:flex;align-items:center;justify-content:space-between;color:#666;font-size:12px;margin-bottom:10px}
+  #pdf-root .paper-title{text-align:center}
+  #pdf-root .paper-title h1{margin:0;font-size:22px;letter-spacing:.5px}
+  #pdf-root .paper-title .sub{margin-top:4px;color:#777;font-size:12px}
+  #pdf-root .qcard{border:1px solid #e6e6e6;border-radius:12px;padding:14px 14px 10px 14px;margin:12px 0; box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  #pdf-root .qtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;color:#666;font-size:12px}
+  #pdf-root .stem{font-size:14px;line-height:1.5;margin-bottom:8px}
+  #pdf-root .opts{margin:0;padding:0;list-style:none}
+  #pdf-root .opts li{display:flex;gap:8px;align-items:center;margin:8px 0;padding:8px 10px;border:1px dashed #e5e5e5;border-radius:10px}
+  #pdf-root .opt-label{width:18px;flex:0 0 18px;color:#555}
+  #pdf-root .opt-text{flex:1 1 auto;border-bottom:1px dotted #dadada;padding-bottom:2px}
+  #pdf-root .tag{color:#999}
+  #pdf-root .ans{margin-top:6px;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:8px;color:#444;font-size:12px}
+  .page-break{break-after: page; page-break-after: always;}
 </style>
 </head>
 <body>
 <header>
-  <h1>译林版·六年级英语 语法出题与讲解 <span class="badge">v5.3.0-clean</span></h1>
-  <p class="muted">两大模式：<strong>语法综合</strong> & <strong>时态专项</strong> · 题干中文 · 导出无序号</p>
+  <h1>译林版·六年级英语 语法出题与讲解 <span class="badge">v5.3.1</span></h1>
+  <p class="muted">两大模式：<strong>语法综合</strong> & <strong>时态专项</strong> · 题干中文 · 导出卡片式 PDF</p>
 </header>
 
 <div class="wrap">
@@ -93,12 +110,12 @@
       <button id="gen" class="btn btn-primary">📝 一键出题</button>
       <button id="showAll" class="btn-ghost" disabled>📖 显示/隐藏全部解析</button>
       <button id="exportDoc" class="btn-ghost">🧾 导出 Word(.doc)</button>
-      <button id="exportPdf" class="btn-ghost">🖨️ 导出 PDF</button>
+      <button id="exportPdf" class="btn-ghost">🖨️ 导出 PDF（卡片式）</button>
       <span id="modeTag" class="badge">当前模式：语法综合</span>
       <span id="stat" class="muted right"></span>
     </div>
     <div class="small muted" style="margin-top:6px">
-      温馨提示：本页不会显示任何自检模块；若无法出题，请在 Netlify 检查环境变量设置是否正确（OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL）。
+      温馨提示：若无法出题，请在 Netlify 检查环境变量（OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL）。
     </div>
   </div>
 
@@ -115,10 +132,14 @@
     </div>
   </div>
 
-  <div class="footer">© 2025 译林版六年级语法练习 · 导出文档无序号（数字已移除）</div>
+  <div class="footer">© 2025 译林版六年级语法练习 · 导出 PDF 每页 5 题 · 含/不含答案可选</div>
 </div>
 
 <div id="toast"></div>
+
+<!-- PDF 渲染依赖（先加载） -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 (function(){
@@ -153,7 +174,6 @@
     const wrap=document.createElement('div'); wrap.className='q';
     const title=document.createElement('h3'); title.innerHTML=`${q.stem} <span class="badge">${q.type}</span>`; wrap.appendChild(title);
     if(q.options?.length){
-      // 取消 A/B/C/D 标签，在导出和页面都以圆点展示
       const ul=document.createElement('ul'); ul.style.margin='8px 0'; ul.style.paddingLeft='18px';
       q.options.forEach(opt=>{ const li=document.createElement('li'); li.className='opt'; li.innerHTML=`<label><input type="radio" name="q${idx}" value="${opt.value}" /> ${opt.text}</label>`; ul.appendChild(li); });
       wrap.appendChild(ul);
@@ -178,9 +198,29 @@
     stat.textContent=`已生成 ${data.items.length} 题`;
   }
 
-  function toggleAllExplain(){ const blocks=list.querySelectorAll('.ans'); const anyHidden=Array.from(blocks).some(b=>!b.classList.contains('show')); blocks.forEach(b=> b.classList.toggle('show', anyHidden)); }
-  function judgeOne(q, ua){ const norm=v=>(v??'').toString().trim().toLowerCase(); if(q.type==='choice'||q.type==='reading'){ return norm(ua) && norm(ua)===norm(q.answer);} if(Array.isArray(q.answer)) return q.answer.map(norm).includes(norm(ua)); if(typeof q.answer==='string') return norm(ua)===norm(q.answer); return false; }
-  function doCheck(){ if(!data?.items) return; let right=0,total=data.items.length; data.items.forEach((q,idx)=>{ const ua=userAns[idx]; const correct=judgeOne(q,ua); const block=list.children[idx]; const title=block.querySelector('h3'); const ans=block.querySelector('.ans'); ans.classList.add('show'); title.querySelector('.badge')?.remove(); const badge=document.createElement('span'); badge.className='badge '+(correct?'ok':'err'); badge.textContent=correct?'✓ 正确':'✗ 错误'; title.appendChild(badge); if(correct) right++; }); score.textContent=`本次得分：${right} / ${total}（${Math.round(right/total*100)}分）`; }
+  function judgeOne(q, ua){
+    const norm=v=>(v??'').toString().trim().toLowerCase();
+    if(q.type==='choice'||q.type==='reading'){ return norm(ua) && norm(ua)===norm(q.answer);}
+    if(Array.isArray(q.answer)) return q.answer.map(norm).includes(norm(ua));
+    if(typeof q.answer==='string') return norm(ua)===norm(q.answer);
+    return false;
+  }
+
+  function exportWord(){
+    const withAns = confirm('导出 Word 时是否包含答案与解析？\n“确定”包含；“取消”只导出题目。');
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>英语练习</title></head>
+      <body>${htmlForExport(withAns)}</body></html>`;
+    const blob = new Blob([html], { type: 'application/msword' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '译林六年级英语练习.doc';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
+    toast('已触发 Word 下载');
+  }
 
   function htmlForExport(includeAnswer=true){
     const time=new Date().toLocaleString();
@@ -191,7 +231,6 @@
       html += '<p>（尚未生成题目，此为占位导出。）</p>';
       return html;
     }
-    // 不使用 <ol> 避免 1,2,3… 序号；使用分隔线和项目块
     data.items.forEach((q, idx)=>{
       html += '<div style="margin:12px 0; padding:10px; border:1px solid #ddd; border-radius:10px">';
       html += '<div><strong>'+q.stem+'</strong></div>';
@@ -211,56 +250,110 @@
     return html;
   }
 
-  function exportWord(){
-    const withAns = confirm('导出 Word 时是否包含答案与解析？\n“确定”包含；“取消”只导出题目。');
-    const html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"><title>英语练习</title></head>
-      <body>${htmlForExport(withAns)}</body></html>`;
-    const blob = new Blob([html], { type: 'application/msword' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = '译林六年级英语练习.doc';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
-    toast('已触发 Word 下载');
+  /** 生成用于 PDF 的卡片 DOM（中文不乱码） **/
+  function buildPdfDom(withAns){
+    const root = document.createElement('div');
+    root.id = 'pdf-root';
+    // 头部
+    const paper = document.createElement('div'); paper.className='paper';
+    const header = document.createElement('div'); header.className='paper-header';
+    const now = new Date();
+    const dateStr = now.toLocaleString();
+    const codeStr = now.toISOString().slice(0,10).replace(/-/g,'') + '01-试卷-A';
+    header.innerHTML = `<div>${dateStr}</div><div>${codeStr}</div>`;
+    const title = document.createElement('div'); title.className='paper-title';
+    title.innerHTML = `<h1>🎓 六年级英语出题器</h1><div class="sub">@凉风有信开发 建议微信wuliaotop</div>`;
+    paper.appendChild(header); paper.appendChild(title);
+
+    if(!data?.items?.length){
+      const blank=document.createElement('div'); blank.textContent='（尚未生成题目，此为占位导出。）';
+      paper.appendChild(blank);
+      root.appendChild(paper);
+      return root;
+    }
+
+    data.items.forEach((q, idx)=>{
+      const card = document.createElement('div'); card.className='qcard';
+      const top = document.createElement('div'); top.className='qtop';
+      top.innerHTML = `<div>第 ${idx+1} 题</div><div class="tag">${mode==='tense'?'时态':q.type}</div>`;
+      const stem = document.createElement('div'); stem.className='stem'; stem.textContent = q.stem;
+      const ul = document.createElement('ul'); ul.className='opts';
+      if(q.options?.length){
+        // 固定显示 A-D；若少于4项，就只显示已有项
+        q.options.forEach(o=>{
+          const li=document.createElement('li');
+          li.innerHTML = `<div class="opt-label">${o.value}.</div><div class="opt-text">${o.text}</div>`;
+          ul.appendChild(li);
+        });
+      }
+      card.appendChild(top); card.appendChild(stem);
+      if(q.options?.length) card.appendChild(ul);
+
+      if(withAns){
+        const ans=document.createElement('div'); ans.className='ans';
+        ans.innerHTML = `<div><strong>答案：</strong> ${Array.isArray(q.answer)? q.answer.join(' / ') : (q.answer ?? '—')}</div>
+                         <div style="margin-top:4px"><strong>解析：</strong> ${(q.explain||'—')}</div>`;
+        card.appendChild(ans);
+      }
+      paper.appendChild(card);
+
+      // 每 5 题强制分页
+      if((idx+1)%5===0){
+        const br=document.createElement('div'); br.className='page-break';
+        paper.appendChild(br);
+      }
+    });
+
+    root.appendChild(paper);
+    // 隐藏到屏幕外，避免闪烁
+    root.style.position='fixed'; root.style.left='-99999px'; root.style.top='0';
+    document.body.appendChild(root);
+    return root;
   }
 
   async function exportPdf(){
     try{
-      const withAns = confirm('导出 PDF 时是否包含答案与解析？\n“确定”包含；“取消”只导出题目。');
-      // 简化 PDF 导出：将数字全部移除（我们本就不用 <ol>）
       if(!window.jspdf){ toast('PDF 引擎未就绪，请稍后再试'); return; }
+      const withAns = confirm('导出 PDF 是否包含答案与解析？\n“确定”包含；“取消”只导出题目。');
+
+      const root = buildPdfDom(withAns);
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit:'pt', format:'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 40;
-      const maxWidth = pageWidth - margin*2;
 
-      const temp = document.createElement('div');
-      temp.style.visibility='hidden';
-      temp.style.position='fixed';
-      temp.style.left='-9999px';
-      temp.innerHTML = htmlForExport(withAns);
-      document.body.appendChild(temp);
-      const text = temp.innerText; // 已无数字序号
-      document.body.removeChild(temp);
-
-      const lines = doc.splitTextToSize(text, maxWidth);
-      let y = 50;
-      const lineHeight = 16;
-      lines.forEach(line => {
-        if(y > 780){ doc.addPage(); y = 50; }
-        doc.text(line, margin, y);
-        y += lineHeight;
+      await doc.html(root, {
+        x: 24, y: 24, width: 547, // 595pt A4 宽度减左右边距
+        autoPaging: 'text',
+        html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff' },
+        callback: (docInst) => {
+          docInst.save('六年级英语_练习卡片.pdf');
+          root.remove();
+          toast('已触发 PDF 下载');
+        }
       });
-      doc.save('译林六年级英语练习.pdf');
-      toast('已触发 PDF 下载');
     }catch(e){
-      toast('PDF 导出失败：'+e.message);
       console.error(e);
+      toast('PDF 导出失败：'+e.message);
     }
+  }
+
+  function doCheck(){
+    if(!data?.items) return;
+    let right=0,total=data.items.length;
+    data.items.forEach((q,idx)=>{
+      const ua=userAns[idx];
+      const correct=judgeOne(q,ua);
+      const block=list.children[idx];
+      const title=block.querySelector('h3');
+      const ans=block.querySelector('.ans');
+      ans.classList.add('show');
+      title.querySelector('.badge')?.remove();
+      const badge=document.createElement('span');
+      badge.className='badge '+(correct?'ok':'err');
+      badge.textContent=correct?'✓ 正确':'✗ 错误';
+      title.appendChild(badge);
+      if(correct) right++;
+    });
+    score.textContent=`本次得分：${right} / ${total}（${Math.round(right/total*100)}分）`;
   }
 
   async function gen(){
@@ -279,18 +372,31 @@
       if(!ok) throw lastErr || new Error('无法访问后端函数');
       data = await res.json();
       if(!data?.items || !Array.isArray(data.items)){ throw new Error('返回数据不是 items 数组，请检查后端提示。'); }
-      renderList(); toast('已生成题目');
-    }catch(err){ console.error(err); list.innerHTML = `<div style="color:#ffb4c0">出题失败：${err.message}</div>`; toast('出题失败：'+err.message); }
-    finally{ genBtn.disabled=false; genBtn.textContent='📝 一键出题'; }
+      // 渲染
+      list.innerHTML='';
+      data.items.forEach((q,idx)=> list.appendChild(qEl(q, idx)));
+      checkBtn.disabled=false; resetBtn.disabled=false; showAllBtn.disabled=false;
+      stat.textContent=`已生成 ${data.items.length} 题`;
+      toast('已生成题目');
+    }catch(err){
+      console.error(err);
+      list.innerHTML = `<div style="color:#ffb4c0">出题失败：${err.message}</div>`;
+      toast('出题失败：'+err.message);
+    } finally{
+      genBtn.disabled=false; genBtn.textContent='📝 一键出题';
+    }
   }
 
   $('#gen').addEventListener('click', gen);
-  $('#showAll').addEventListener('click', ()=>{ const blocks=list.querySelectorAll('.ans'); const anyHidden=Array.from(blocks).some(b=>!b.classList.contains('show')); blocks.forEach(b=> b.classList.toggle('show', anyHidden)); });
-  $('#check').addEventListener('click', ()=>{ if(!data?.items) return; let right=0,total=data.items.length; data.items.forEach((q,idx)=>{ const ua=userAns[idx]; const correct=(function(q,ua){ const n=v=>(v??'').toString().trim().toLowerCase(); if(q.type==='choice'||q.type==='reading'){ return n(ua) && n(ua)===n(q.answer);} if(Array.isArray(q.answer)) return q.answer.map(n).includes(n(ua)); if(typeof q.answer==='string') return n(ua)===n(q.answer); return false; })(q,ua); const block=list.children[idx]; const title=block.querySelector('h3'); const ans=block.querySelector('.ans'); ans.classList.add('show'); title.querySelector('.badge')?.remove(); const badge=document.createElement('span'); badge.className='badge '+(correct?'ok':'err'); badge.textContent=correct?'✓ 正确':'✗ 错误'; title.appendChild(badge); if(correct) right++; }); score.textContent=`本次得分：${right} / ${total}（${Math.round(right/total*100)}分）`; });
-  $('#reset').addEventListener('click', ()=>{ userAns={}; score.textContent=''; if(data) renderList(); });
+  $('#showAll').addEventListener('click', ()=>{
+    const blocks=list.querySelectorAll('.ans');
+    const anyHidden=Array.from(blocks).some(b=>!b.classList.contains('show'));
+    blocks.forEach(b=> b.classList.toggle('show', anyHidden));
+  });
+  $('#check').addEventListener('click', doCheck);
+  $('#reset').addEventListener('click', ()=>{ userAns={}; score.textContent=''; if(data) list.innerHTML='', renderList(); });
   $('#exportDoc').addEventListener('click', exportWord);
   $('#exportPdf').addEventListener('click', exportPdf);
-  // default mode
   setMode('grammar');
 })();
 </script>
